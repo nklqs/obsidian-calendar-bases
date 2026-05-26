@@ -89,17 +89,34 @@ export const CalendarReactView: React.FC<CalendarReactViewProps> = ({
       }
     }
 
-    return {
+    if(calEntry.recurringDoW == undefined) {
+      return {
+        id: calEntry.entry.file.path,
+        title: calEntry.entry.file.basename,
+        start: calEntry.startDate,
+        end: adjustedEndDate,
+        allDay: true,
+        extendedProps: {
+          entry: calEntry.entry,
+          originalEndDate: calEntry.endDate, // Keep track of original end date for drag operations
+        },
+      };
+    }
+    else {
+      return {
       id: calEntry.entry.file.path,
       title: calEntry.entry.file.basename,
-      start: calEntry.startDate,
-      end: adjustedEndDate,
+      daysOfWeek: calEntry.recurringDoW,
+      startRecur: calEntry.startDate,
+      endRecur: calEntry.endDate,
       allDay: true,
+
       extendedProps: {
         entry: calEntry.entry,
-        originalEndDate: calEntry.endDate, // Keep track of original end date for drag operations
+        originalEndDate: calEntry.endDate,
       },
     };
+    }
   });
 
   const handleEventClick = useCallback(
@@ -354,6 +371,7 @@ interface CalendarEntry {
   entry: BasesEntry;
   startDate: Date;
   endDate?: Date;
+  recurringDoW?: number [];
 }
 
 function tryGetValue(entry: BasesEntry, propId: BasesPropertyId): Value | null {

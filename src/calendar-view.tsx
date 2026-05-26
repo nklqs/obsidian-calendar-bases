@@ -19,6 +19,7 @@ interface CalendarEntry {
   entry: BasesEntry;
   startDate: Date;
   endDate?: Date;
+  recurringDoW?: number[];
 }
 
 export class CalendarView extends BasesView {
@@ -32,7 +33,17 @@ export class CalendarView extends BasesView {
   private entries: CalendarEntry[] = [];
   private startDateProp: BasesPropertyId | null = null;
   private endDateProp: BasesPropertyId | null = null;
+  private recurringProp: BasesPropertyId | null = null;
   private weekStartDay: number = 1;
+  private dayNameToNumber: Record<string, number> = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+  };
 
   constructor(controller: QueryController, scrollEl: HTMLElement) {
     super(controller);
@@ -73,20 +84,11 @@ export class CalendarView extends BasesView {
   private loadConfig(): void {
     this.startDateProp = this.config.getAsPropertyId("startDate");
     this.endDateProp = this.config.getAsPropertyId("endDate");
+    this.recurringProp = this.config.getAsPropertyId("recurringEvent");
     const weekStartDayValue = this.config.get("weekStartDay") as string;
 
-    const dayNameToNumber: Record<string, number> = {
-      sunday: 0,
-      monday: 1,
-      tuesday: 2,
-      wednesday: 3,
-      thursday: 4,
-      friday: 5,
-      saturday: 6,
-    };
-
     this.weekStartDay = weekStartDayValue
-      ? (dayNameToNumber[weekStartDayValue] ?? 1)
+      ? (this.dayNameToNumber[weekStartDayValue] ?? 1)
       : 1; // Default to Monday
   }
 
@@ -103,7 +105,11 @@ export class CalendarView extends BasesView {
     this.entries = [];
     for (const entry of this.data.data) {
       const startDate = this.extractDate(entry, this.startDateProp);
+      let recurringDoW;
       if (startDate) {
+        if (this.recurringProp) {
+          recurringDoW = this.extractRecurr(entry, this.recurringProp, startDate);
+        }
         const endDate = this.endDateProp
           ? (this.extractDate(entry, this.endDateProp) ?? undefined)
           : undefined;
@@ -111,6 +117,7 @@ export class CalendarView extends BasesView {
           entry,
           startDate,
           endDate,
+          recurringDoW
         });
       }
     }
@@ -161,6 +168,10 @@ export class CalendarView extends BasesView {
     const endDateProperty = parsePropertyId(this.endDateProp);
     if (endDateProperty.type !== "note") return false;
 
+    if (!this.recurringProp) return true;
+    const recurringProperty = parsePropertyId(this.endDateProp);
+    if (recurringProperty.type !== "note") return false;
+
     return true;
   }
 
@@ -179,6 +190,26 @@ export class CalendarView extends BasesView {
       console.error(`Error extracting date for ${entry.file.name}:`, error);
       return null;
     }
+  }
+
+  private extractRecurr(entry: BasesEntry, propId: BasesPropertyId, startDate: Date): number[] | undefined {
+    const value = entry.getValue(propId)
+    console.log(value);
+    if (!value || ('type' in value && value.type == "Null")) {
+      return undefined;
+    }
+    let recurrDay = [];
+    if (value.toString() == "weekly") {
+      recurrDay.push(startDate.getDay());
+      return recurrDay;
+    }
+    const stringDays: String[] = value.toString().split(",");
+    console.log(stringDays)
+    for (let i = 0; i < stringDays.length; i++) {
+      recurrDay.push(this.dayNameToNumber[stringDays[i].toString().trim().toLowerCase()]);
+    }
+    console.log(recurrDay);
+    return recurrDay;
   }
 
   private showEntryContextMenu(evt: MouseEvent, entry: BasesEntry): void {
@@ -263,6 +294,12 @@ export class CalendarView extends BasesView {
             displayName: "End date (optional)",
             type: "property",
             key: "endDate",
+            placeholder: "Property",
+          },
+          {
+            displayName: "Recurring event (optional)",
+            type: "property",
+            key: "recurringEvent",
             placeholder: "Property",
           },
         ],
