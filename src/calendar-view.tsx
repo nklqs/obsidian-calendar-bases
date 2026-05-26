@@ -203,6 +203,9 @@ export class CalendarView extends BasesView {
       recurrDay.push(startDate.getDay());
       return recurrDay;
     }
+    if(value.toString() == "daily") {
+      return [0, 1, 2, 3, 4, 5, 6];
+    }
     const stringDays: String[] = value.toString().split(",");
     console.log(stringDays)
     for (let i = 0; i < stringDays.length; i++) {
